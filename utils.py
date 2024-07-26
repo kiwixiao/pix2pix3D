@@ -70,8 +70,8 @@ def load_dataset(data_dir, target_shape):
     mask_labels = []
     
     # Get all MRI and mask files
-    mri_files = sorted(glob.glob(os.path.join(data_dir, '*_mri.nii.gz')))
-    mask_files = sorted(glob.glob(os.path.join(data_dir, '*_mask.nii.gz')))
+    mri_files = sorted(glob.glob(os.path.join(data_dir, '*_mri.nii*')))
+    mask_files = sorted(glob.glob(os.path.join(data_dir, '*_mask.nii*')))
     
     # Process each pair of MRI and mask
     for mri_file, mask_file in zip(mri_files, mask_files):
@@ -87,7 +87,7 @@ def extract_patches(image, patch_size, stride):
     for z in range(0, image.shape[0] - patch_size[0] + 1, stride[0]):
         for y in range(0, image.shape[1] - patch_size[1] + 1, stride[1]):
             for x in range(0, image.shape[2] - patch_size[2] + 1, stride[2]):
-                patch = image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]
+                patch = image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]]
                 patches.append[patch]
     return np.array(patches)
 
