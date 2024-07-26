@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 import torch
-from utils import setup_logger, load_dataset
+from utils import setup_logger, load_dataset, PatchDataset
 from model import Generator, Discriminator
 from train import train
 
@@ -12,18 +12,20 @@ def main(args):
     
     # Set up device (GPU if available, else CPU)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using {device} to train the model")
     logger.info(f"Using device: {device}")
 
     # Load and preprocess data
     logger.info("Loading and preprocessing data...")
     mri_images, mask_labels = load_dataset(args.data_dir, args.target_shape)
+    # create patch dataset
+    patch_dataset = PatchDataset(mri_images, mask_labels, 
+                                  patch_size=args.patch_size,
+                                  stride = args.stride)
     
-    # Split data into train and test sets (using last image as test)
-    test_idx = len(mri_images) - 1
-    train_mri = mri_images[:test_idx]
-    train_masks = mask_labels[:test_idx]
-    test_mri = mri_images[test_idx]
-    test_mask = mask_labels[test_idx]
+    # use the last full image for testing
+    test_mri = mri_images[-1]
+    test_mask = mask_labels[-1]
 
     # Initialize generator and discriminator models
     generator = Generator(args.in_channels, args.out_channels, args.features).to(device)
@@ -33,10 +35,9 @@ def main(args):
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Train the model
-    train(generator, discriminator, train_mri, train_masks, (test_mri, test_mask), args, device)
+    train(generator, discriminator, patch_dataset, (test_mri, test_mask), args, device)
 
 if __name__ == "__main__":
-    # Set up command line argument parser
     parser = argparse.ArgumentParser(description="3D pix2pixGAN for MRI segmentation")
     parser.add_argument("--data_dir", type=str, required=True, help="Path to the data directory")
     parser.add_argument("--output_dir", type=str, default="output", help="Output directory for saving results")
@@ -48,11 +49,11 @@ if __name__ == "__main__":
     parser.add_argument("--save_interval", type=int, default=10, help="Interval for saving checkpoints")
     parser.add_argument("--plot_interval", type=int, default=5, help="Interval for plotting predictions")
     parser.add_argument("--target_shape", nargs=3, type=int, default=[128, 128, 128], help="Target shape for resampling")
+    parser.add_argument("--patch_size", nargs=3, type=int, default=[64, 64, 64], help="Size of patches for training")
+    parser.add_argument("--stride", nargs=3, type=int, default=[32, 32, 32], help="Stride for patch extraction")
     parser.add_argument("--lr", type=float, default=0.0002, help="Learning rate")
 
     args = parser.parse_args()
-    
-    # Create a unique output directory based on current timestamp
     args.output_dir = os.path.join(args.output_dir, datetime.now().strftime("%Y%m%d_%H%M%S"))
     
     main(args)

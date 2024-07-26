@@ -4,6 +4,7 @@ import glob
 import numpy as np
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
+from torch.utils.data import Dataset
 
 def setup_logger():
     """Set up and return a logger"""
@@ -79,6 +80,47 @@ def load_dataset(data_dir, target_shape):
         mask_labels.append(mask)
     
     return np.array(mri_images), np.array(mask_labels)
+
+def extract_patches(image, patch_size, stride):
+    # extract patches from a 3D image
+    patches = []
+    for z in range(0, image.shape[0] - patch_size[0] + 1, stride[0]):
+        for y in range(0, image.shape[1] - patch_size[1] + 1, stride[1]):
+            for x in range(0, image.shape[2] - patch_size[2] + 1, stride[2]):
+                patch = image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]
+                patches.append[patch]
+    return np.array(patches)
+
+class PatchDataset(Dataset):
+    def __init__(self, mri_images, mask_labels, patch_size=(64,64,64), stride=(32,32,32)):
+        self.mri_images=mri_images
+        self.mask_labels = mask_labels
+        self.patch_size = patch_size
+        self.stride = stride
+
+        self.mri_patches = []
+        self.mask_patches = []
+
+        for mri, mask in zip(mri_images, mask_labels):
+            mri_patches = extract_patches(mri, patch_size, stride)
+            mask_patches = extract_patches(mask, patch_size, stride)
+
+            self.mri_patches.extend(mri_patches)
+            self.mask_patches.extend(mask_patches)
+
+        self.mri_patches = np.array(self.mri_patches)
+        self.mask_patches = np.array(self.mask_patches)
+
+    def __len__(self):
+        return len(self.mri_patches)
+
+    def __getitem__(self, idx):
+        mri_patch = self.mri_patches[idx]
+        mask_patch = self.mask_patches[dix]
+        return mri_patch, mask_patch
+
+                    
+
 
 def plot_prediction(test_mri, test_mask, pred_mask, epoch, output_dir):
     """Plot and save the prediction results"""
