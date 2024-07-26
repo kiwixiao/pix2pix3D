@@ -125,16 +125,20 @@ def plot_prediction(test_mri, test_mask, pred_mask, epoch, output_dir):
     """Plot and save the prediction results"""
     fig, axs = plt.subplots(3, 3, figsize=(15, 15))
     for i, dim in enumerate(['Sagittal', 'Coronal', 'Axial']):
-        slice_idx = test_mri.shape[i+2] // 2
+        slice_idx = test_mri.shape[i] // 2
+        
         # Plot original MRI
-        axs[i, 0].imshow(test_mri.take(slice_idx, axis=i), cmap='gray')
+        axs[i, 0].imshow(np.take(test_mri, slice_idx, axis=i), cmap='gray')
         axs[i, 0].set_title(f'{dim} MRI')
+        
         # Plot true mask
-        axs[i, 1].imshow(test_mask.take(slice_idx, axis=i), cmap='gray')
+        axs[i, 1].imshow(np.take(test_mask, slice_idx, axis=i), cmap='gray')
         axs[i, 1].set_title(f'{dim} True Mask')
+        
         # Plot predicted mask
-        axs[i, 2].imshow(pred_mask.take(slice_idx, axis=i), cmap='gray')
+        axs[i, 2].imshow(np.take(pred_mask, slice_idx, axis=i), cmap='gray')
         axs[i, 2].set_title(f'{dim} Predicted Mask')
+    
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f'prediction_epoch_{epoch+1}.png'))
     plt.close()

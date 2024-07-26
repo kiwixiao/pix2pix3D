@@ -76,6 +76,12 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
             generator.eval()
             with torch.no_grad():
                 pred_mask = generator(test_mri_tensor)
-                plot_prediction(test_mri, test_mask, pred_mask.squeeze().cpu().numpy(), epoch, args.output_dir)
-                logger.info(f"Prediction plot saved at epoch {epoch+1}")
+                # Ensure all inputs to plot_prediction are 3D arrays
+                plot_prediction(
+                    test_mri,  # This should already be 3D
+                    test_mask,  # This should already be 3D
+                    pred_mask.squeeze().cpu().numpy(),  # Remove batch dimension if present
+                    epoch,
+                    args.output_dir
+                )
             generator.train()
