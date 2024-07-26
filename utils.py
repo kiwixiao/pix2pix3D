@@ -88,7 +88,7 @@ def extract_patches(image, patch_size, stride):
         for y in range(0, image.shape[1] - patch_size[1] + 1, stride[1]):
             for x in range(0, image.shape[2] - patch_size[2] + 1, stride[2]):
                 patch = image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]]
-                patches.append[patch]
+                patches.append(patch)
     return np.array(patches)
 
 class PatchDataset(Dataset):
@@ -116,11 +116,10 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, idx):
         mri_patch = self.mri_patches[idx]
-        mask_patch = self.mask_patches[dix]
+        mask_patch = self.mask_patches[idx]
         return mri_patch, mask_patch
 
-                    
-
+                
 
 def plot_prediction(test_mri, test_mask, pred_mask, epoch, output_dir):
     """Plot and save the prediction results"""
