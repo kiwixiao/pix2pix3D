@@ -4,9 +4,14 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import os
 from utils import plot_prediction, check_tensor_size
+from torchviz import make_dot
+from torch.utils.tensorboard import SummaryWriter
 
 def train(generator, discriminator, patch_dataset, test_data, args, device):
     logger = args.logger
+
+    # Set up TensorBoard writer
+    writer = SummaryWriter(log_dir=os.path.join(args.output_dir, 'tensorboard_logs'))
 
     criterion_gan = nn.BCEWithLogitsLoss()
     criterion_pixel = nn.L1Loss()
@@ -22,7 +27,23 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
     expected_input_size = torch.Size([args.batch_size, 1] + list(args.patch_size))
     expected_output_size = torch.Size([args.batch_size, 1] + list(args.patch_size))
 
+    # Save model architecture as PNG
+    dummy_input = torch.randn(1, 1, *args.patch_size).to(device)
+    y = generator(dummy_input)
+    make_dot(y, params=dict(generator.named_parameters())).render(os.path.join(args.output_dir, "generator_architecture"), format="png")
+    
+    y = discriminator(torch.cat([dummy_input, y], dim=1))
+    make_dot(y, params=dict(discriminator.named_parameters())).render(os.path.join(args.output_dir, "discriminator_architecture"), format="png")
+
+    # Log model graphs to TensorBoard
+    writer.add_graph(generator, dummy_input)
+    writer.add_graph(discriminator, torch.cat([dummy_input, y], dim=1))
+
+    global_step = 0
     for epoch in range(args.num_epochs):
+        generator.train()
+        discriminator.train()
+        
         for i, (mri_patch, mask_patch) in enumerate(train_loader):
             mri_patch, mask_patch = mri_patch.unsqueeze(1).float().to(device), mask_patch.unsqueeze(1).float().to(device)
             
@@ -36,7 +57,7 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
             fake_patch = generator(mri_patch)
             check_tensor_size(fake_patch, expected_output_size, "Generated patch")
 
-            pred_fake = discriminator(torch.cat([mri_patch, fake_patch], dim=1))
+            pred_fake = discriminator(torch.cat([mri_patch, fake_patch.detach()], dim=1))
             loss_d_fake = criterion_gan(pred_fake, torch.zeros_like(pred_fake))
             
             pred_real = discriminator(torch.cat([mri_patch, mask_patch], dim=1))
@@ -60,28 +81,36 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
             loss_g.backward()
             optimizer_g.step()
 
+            # Log losses to TensorBoard
+            writer.add_scalar('Loss/Discriminator', loss_d.item(), global_step)
+            writer.add_scalar('Loss/Generator', loss_g.item(), global_step)
+            writer.add_scalar('Loss/Generator_GAN', loss_g_gan.item(), global_step)
+            writer.add_scalar('Loss/Generator_Pixel', loss_g_pixel.item(), global_step)
+
+            global_step += 1
+
         logger.info(f"Epoch [{epoch+1}/{args.num_epochs}], D Loss: {loss_d.item():.4f}, G Loss: {loss_g.item():.4f}")
 
-        if (epoch + 1) % args.save_interval == 0:
-            torch.save({
-                'epoch': epoch,
-                'generator_state_dict': generator.state_dict(),
-                'discriminator_state_dict': discriminator.state_dict(),
-                'optimizer_g_state_dict': optimizer_g.state_dict(),
-                'optimizer_d_state_dict': optimizer_d.state_dict(),
-            }, os.path.join(args.output_dir, f'checkpoint_epoch_{epoch+1}.pth'))
-            logger.info(f"Checkpoint saved at epoch {epoch+1}")
+        # Save model after every epoch
+        torch.save({
+            'epoch': epoch,
+            'generator_state_dict': generator.state_dict(),
+            'discriminator_state_dict': discriminator.state_dict(),
+            'optimizer_g_state_dict': optimizer_g.state_dict(),
+            'optimizer_d_state_dict': optimizer_d.state_dict(),
+        }, os.path.join(args.output_dir, f'checkpoint_epoch_{epoch+1}.pth'))
+        logger.info(f"Checkpoint saved at epoch {epoch+1}")
 
         if (epoch + 1) % args.plot_interval == 0:
             generator.eval()
             with torch.no_grad():
                 pred_mask = generator(test_mri_tensor)
-                # Ensure all inputs to plot_prediction are 3D arrays
-                plot_prediction(
-                    test_mri,  # This should already be 3D
-                    test_mask,  # This should already be 3D
-                    pred_mask.squeeze().cpu().numpy(),  # Remove batch dimension if present
-                    epoch,
-                    args.output_dir
-                )
-            generator.train()
+                plot_prediction(test_mri, test_mask, pred_mask.squeeze().cpu().numpy(), epoch, args.output_dir)
+                logger.info(f"Prediction plot saved at epoch {epoch+1}")
+            
+            # Log images to TensorBoard
+            writer.add_images('MRI/Test', test_mri_tensor, epoch)
+            writer.add_images('Mask/True', torch.from_numpy(test_mask).unsqueeze(0).unsqueeze(0), epoch)
+            writer.add_images('Mask/Predicted', pred_mask, epoch)
+
+    writer.close()

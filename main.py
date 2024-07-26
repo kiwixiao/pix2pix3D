@@ -7,35 +7,28 @@ from model import Generator, Discriminator
 from train import train
 
 def main(args):
-    # Set up logging
     logger = setup_logger()
-    args.logger = logger # add this line to attach the logger to args
-         
-    # Set up device (GPU if available, else CPU)
+    args.logger = logger
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using {device} to train the model")
     logger.info(f"Using device: {device}")
 
-    # Load and preprocess data
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+
     logger.info("Loading and preprocessing data...")
     mri_images, mask_labels = load_dataset(args.data_dir, args.target_shape)
-    # create patch dataset
-    patch_dataset = PatchDataset(mri_images, mask_labels, 
-                                  patch_size=args.patch_size,
-                                  stride = args.stride)
     
-    # use the last full image for testing
+    patch_dataset = PatchDataset(mri_images, mask_labels, 
+                                 patch_size=args.patch_size, 
+                                 stride=args.stride)
+    
     test_mri = mri_images[-1]
     test_mask = mask_labels[-1]
 
-    # Initialize generator and discriminator models
     generator = Generator(args.in_channels, args.out_channels, args.features).to(device)
     discriminator = Discriminator(args.in_channels + args.out_channels, args.features).to(device)
 
-    # Create output directory for saving results
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    # Train the model
     train(generator, discriminator, patch_dataset, (test_mri, test_mask), args, device)
 
 if __name__ == "__main__":
