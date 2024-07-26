@@ -3,7 +3,7 @@ import torch
 import SimpleITK as sitk
 import numpy as np
 from model import Generator
-from utils import resample_image, preprocess_data
+from utils import resample_image, preprocess_data, check_tensor_size
 
 def load_checkpoint(checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -12,10 +12,12 @@ def load_checkpoint(checkpoint_path, device):
     generator.eval()
     return generator
 
-def predict_patch(generator, patch, device):
+def predict_patch(generator, patch, device, expected_input_size):
     with torch.no_grad():
         input_tensor = torch.from_numpy(patch).unsqueeze(0).unsqueeze(0).float().to(device)
+        check_tensor_size(input_tensor, expected_input_size, "Input patch")
         output = generator(input_tensor)
+        check_tensor_size(output, expected_input_size, "Output patch")
     return output.squeeze().cpu().numpy()
 
 def create_weight_mask(patch_size):
@@ -34,11 +36,13 @@ def predict(generator, input_image, device, patch_size, stride):
     weight_sum = np.zeros_like(input_image)
     weight_mask = create_weight_mask(patch_size)
 
+    expected_input_size = torch.Size([1, 1] + list(patch_size))
+
     for z in range(0, input_image.shape[0] - patch_size[0] + 1, stride[0]):
         for y in range(0, input_image.shape[1] - patch_size[1] + 1, stride[1]):
             for x in range(0, input_image.shape[2] - patch_size[2] + 1, stride[2]):
                 patch = input_image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]]
-                pred_patch = predict_patch(generator, patch, device)
+                pred_patch = predict_patch(generator, patch, device, expected_input_size)
                 
                 prediction[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += pred_patch * weight_mask
                 weight_sum[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += weight_mask

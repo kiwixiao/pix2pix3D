@@ -139,3 +139,13 @@ def plot_prediction(test_mri, test_mask, pred_mask, epoch, output_dir):
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f'prediction_epoch_{epoch+1}.png'))
     plt.close()
+
+def check_tensor_size(tensor, expected_size, name=""):
+    """
+    Check if the tensor size matches the expected size.
+    If not, print an error message and raise an exception.
+    """
+    if tensor.size() != expected_size:
+        error_msg = f"Size mismatch for {name}. Expected {expected_size}, got {tensor.size()}"
+        print(error_msg)
+        raise ValueError(error_msg)

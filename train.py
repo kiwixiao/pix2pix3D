@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import os
-from utils import plot_prediction
+from utils import plot_prediction, check_tensor_size
 
 def train(generator, discriminator, patch_dataset, test_data, args, device):
     logger = args.logger
@@ -19,16 +19,23 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
     test_mri, test_mask = test_data
     test_mri_tensor = torch.from_numpy(test_mri).unsqueeze(0).unsqueeze(0).float().to(device)
 
+    expected_input_size = torch.Size([args.batch_size, 1] + list(args.patch_size))
+    expected_output_size = torch.Size([args.batch_size, 1] + list(args.patch_size))
+
     for epoch in range(args.num_epochs):
         for i, (mri_patch, mask_patch) in enumerate(train_loader):
             mri_patch, mask_patch = mri_patch.unsqueeze(1).float().to(device), mask_patch.unsqueeze(1).float().to(device)
             
-            logger.info(f"Patch tensor size: {mri_patch.size()}")
+            # Check tensor sizes
+            check_tensor_size(mri_patch, expected_input_size, "MRI patch")
+            check_tensor_size(mask_patch, expected_output_size, "Mask patch")
 
             # Train Discriminator
             optimizer_d.zero_grad()
             
             fake_patch = generator(mri_patch)
+            check_tensor_size(fake_patch, expected_output_size, "Generated patch")
+
             pred_fake = discriminator(torch.cat([mri_patch, fake_patch], dim=1))
             loss_d_fake = criterion_gan(pred_fake, torch.zeros_like(pred_fake))
             
@@ -43,6 +50,8 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
             optimizer_g.zero_grad()
             
             fake_patch = generator(mri_patch)
+            check_tensor_size(fake_patch, expected_output_size, "Generated patch")
+
             pred_fake = discriminator(torch.cat([mri_patch, fake_patch], dim=1))
             loss_g_gan = criterion_gan(pred_fake, torch.ones_like(pred_fake))
             loss_g_pixel = criterion_pixel(fake_patch, mask_patch)
