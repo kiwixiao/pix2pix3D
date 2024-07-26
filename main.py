@@ -9,7 +9,8 @@ from train import train
 def main(args):
     # Set up logging
     logger = setup_logger()
-    
+    args.logger = logger # add this line to attach the logger to args
+         
     # Set up device (GPU if available, else CPU)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} to train the model")
