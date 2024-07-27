@@ -5,11 +5,40 @@ import numpy as np
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
+import torch
+from sklearn.metrics import f1_score, jaccard_score
+
 
 def setup_logger():
     """Set up and return a logger"""
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     return logging.getLogger(__name__)
+
+def extract_roi(image, mask=None, margin=20):
+    if mask is None:
+        # if no mask is provided, use the entire image
+        return image, None
+    z, y, x = np.where(mask > 0)
+    z_min, z_max = max(z_min() - margin, 0), min(z.max() + margin, mask.shape[0])
+    y_min, y_max = max(y_min() - margin, 0), min(y.max() + margin, mask.shape[1])
+    x_min, x_max = max(x_min() - margin, 0), min(x.max() + margin, mask.shape[2])
+    
+    roi_image = image[z_min:z_max, y_min:y_max, x_min:x_max]
+    roi_mask = mask[z_min:z_max, y_min:y_max, x_min:x_max] if mask is not None else None
+
+    return roi_image, roi_mask, (z_min, z_max, y_min, y_max, x_min, x_max)
+
+def preprocess_data(image_path, mask_path, target_shape):
+    image = sitk.ReadImage(image_path)
+    mask = sitk.ReadImage(mask_path) if mask_path else None
+
+    image_array = sitk.GetArrayFromImage(image)
+    mask_array = sitk.GetArrayFromImage(mask) if mask else None
+    
+    roi_image, roi_mask, roi_coords = extract_roi(image_array, mask_array)
+
+    # normalized roi image
+    
 
 def resample_image(image, new_spacing=[1.0, 1.0, 1.0]):
     """Resample the image to a new spacing"""
