@@ -14,7 +14,7 @@ def train(generator, discriminator, patch_dataset, test_data, args, device):
     optimizer_g = optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
     optimizer_d = optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.5, 0.999))
 
-    train_loader = DataLoader(patch_dataset, batch_size=args.batch_size, shuffle=True)
+    train_loader = DataLoader(patch_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
     test_mri, test_mask = test_data
     test_mri_tensor = torch.from_numpy(test_mri).unsqueeze(0).unsqueeze(0).float().to(device)
