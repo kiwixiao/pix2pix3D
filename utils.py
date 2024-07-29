@@ -144,29 +144,43 @@ class PatchDataset(Dataset):
         
         return torch.from_numpy(img_patch).float().unsqueeze(0), torch.from_numpy(mask_patch).float().unsqueeze(0)
 
+import os
+import glob
+import logging
+
 def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1.0, 1.0]):
-    """
-    load and preprocess all images in the data dir, this function prepares the entrire dataset for training.
-    """
-    logger = setup_logger()
+    logger = logging.getLogger(__name__)
+    
     mri_images = []
     mask_labels = []
-    # get all mri and maks files
+    
     mri_files = sorted(glob.glob(os.path.join(data_dir, '*mri.nii*')))
     mask_files = sorted(glob.glob(os.path.join(data_dir, '*mask.nii*')))
+    
+    logger.info(f"Found {len(mri_files)} MRI files and {len(mask_files)} mask files.")
+    
     if len(mri_files) != len(mask_files):
-        print(f"number of images {len(mri_files)}")
-        print(f"number of masks {len(mask_files)}")
-        
+        logger.warning(f"Number of MRI images ({len(mri_files)}) and masks ({len(mask_files)}) do not match.")
+        logger.info("MRI files:")
+        for mri_file in mri_files:
+            logger.info(f"  {mri_file}")
+        logger.info("Mask files:")
+        for mask_file in mask_files:
+            logger.info(f"  {mask_file}")
         raise ValueError("Number of MRI images and masks do not match.")
-    # process each pair of MRI and mask
-    for mri_file, mask_file in zip(mri_files,mask_files):
-        logger.info(f"Processing {mri_file}")
+    
+    for mri_file, mask_file in zip(mri_files, mask_files):
+        logger.info(f"Processing MRI: {mri_file}")
+        logger.info(f"Corresponding mask: {mask_file}")
+        
         mri_image, mask_label = preprocess_data(mri_file, mask_file, target_shape, new_spacing)
+        
         mri_images.append(mri_image)
         mask_labels.append(mask_label)
+    
+    logger.info(f"Successfully processed {len(mri_images)} image-mask pairs.")
+    
     dataset = PatchDataset(mri_images, mask_labels, patch_size, stride)
-
     return dataset
 
 def calculate_metrics(true_mask, pred_mask):
