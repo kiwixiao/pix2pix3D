@@ -3,7 +3,8 @@ import torch
 import SimpleITK as sitk
 import numpy as np
 from model import Generator
-from utils import resample_image, preprocess_data, check_tensor_size
+from utils import preprocess_data, resize_volume, extract_patches
+import os
 
 def load_checkpoint(checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -12,44 +13,37 @@ def load_checkpoint(checkpoint_path, device):
     generator.eval()
     return generator
 
-def predict_patch(generator, patch, device, expected_input_size):
+def predict_patch(generator, patch, device):
     with torch.no_grad():
         input_tensor = torch.from_numpy(patch).unsqueeze(0).unsqueeze(0).float().to(device)
-        check_tensor_size(input_tensor, expected_input_size, "Input patch")
         output = generator(input_tensor)
-        check_tensor_size(output, expected_input_size, "Output patch")
     return output.squeeze().cpu().numpy()
 
-def create_weight_mask(patch_size):
-    """Create a weight mask for linear blending"""
-    weight_mask = np.ones(patch_size)
-    for axis in range(3):
-        grad = np.linspace(0, 1, patch_size[axis])
-        sl = [np.newaxis] * 3
-        sl[axis] = slice(None)
-        weight_mask *= np.minimum(grad[tuple(sl)], grad[tuple(sl)][::-1])
-    return weight_mask
+def reconstruct_from_patches(patches, original_shape, patch_size, stride):
+    output = np.zeros(original_shape)
+    count = np.zeros(original_shape)
+    
+    i = 0
+    for z in range(0, original_shape[0] - patch_size[0] + 1, stride[0]):
+        for y in range(0, original_shape[1] - patch_size[1] + 1, stride[1]):
+            for x in range(0, original_shape[2] - patch_size[2] + 1, stride[2]):
+                output[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += patches[i]
+                count[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += 1
+                i += 1
+    
+    output = np.divide(output, count, where=count!=0)
+    return output
 
 def predict(generator, input_image, device, patch_size, stride):
-    """Predict using sliding window with overlap and blending"""
-    prediction = np.zeros_like(input_image)
-    weight_sum = np.zeros_like(input_image)
-    weight_mask = create_weight_mask(patch_size)
-
-    expected_input_size = torch.Size([1, 1] + list(patch_size))
-
-    for z in range(0, input_image.shape[0] - patch_size[0] + 1, stride[0]):
-        for y in range(0, input_image.shape[1] - patch_size[1] + 1, stride[1]):
-            for x in range(0, input_image.shape[2] - patch_size[2] + 1, stride[2]):
-                patch = input_image[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]]
-                pred_patch = predict_patch(generator, patch, device, expected_input_size)
-                
-                prediction[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += pred_patch * weight_mask
-                weight_sum[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += weight_mask
-
-    # Normalize by weight sum to get final prediction
-    prediction = np.divide(prediction, weight_sum, where=weight_sum != 0)
-    return prediction
+    patches, _ = extract_patches(input_image, None, patch_size, stride)
+    predicted_patches = []
+    
+    for patch in patches:
+        pred_patch = predict_patch(generator, patch, device)
+        predicted_patches.append(pred_patch)
+    
+    predicted_mask = reconstruct_from_patches(predicted_patches, input_image.shape, patch_size, stride)
+    return predicted_mask
 
 def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -57,23 +51,28 @@ def main(args):
 
     generator = load_checkpoint(args.checkpoint, device)
 
+    # Load and preprocess input image
     original_image = sitk.ReadImage(args.input_image)
-    input_image, _ = preprocess_data(args.input_image, args.input_image, args.target_shape)
+    preprocessed_image, _, _ = preprocess_data(args.input_image, None, args.target_shape, args.new_spacing)
 
-    predicted_mask = predict(generator, input_image, device, args.patch_size, args.stride)
+    # Predict on preprocessed image
+    predicted_mask = predict(generator, preprocessed_image, device, args.patch_size, args.stride)
 
-    # Convert prediction to binary mask
+    # Transform prediction from [-1, 1] to [0, 1]
+    predicted_mask = (predicted_mask + 1) / 2
+
+    # Threshold the prediction
     predicted_mask = (predicted_mask > 0.5).astype(np.float32)
 
-    predicted_mask_sitk = sitk.GetImageFromArray(predicted_mask)
-    predicted_mask_sitk.SetSpacing(original_image.GetSpacing())
-    predicted_mask_sitk.SetOrigin(original_image.GetOrigin())
-    predicted_mask_sitk.SetDirection(original_image.GetDirection())
+    # Resize prediction to original image size
+    original_size = original_image.GetSize()[::-1]  # SimpleITK uses (x,y,z) ordering
+    predicted_mask_resized = resize_volume(predicted_mask, original_size)
 
-    resampled_mask = sitk.Resample(predicted_mask_sitk, original_image, sitk.Transform(), sitk.sitkNearestNeighbor)
-
-    output_path = args.input_image.replace('.nii.gz', '_predicted_mask.nii.gz')
-    sitk.WriteImage(resampled_mask, output_path)
+    # Save the predicted mask
+    output_image = sitk.GetImageFromArray(predicted_mask_resized)
+    output_image.CopyInformation(original_image)
+    output_path = os.path.splitext(args.input_image)[0] + '_predicted_mask.nii.gz'
+    sitk.WriteImage(output_image, output_path)
     print(f"Predicted mask saved to: {output_path}")
 
 if __name__ == "__main__":
@@ -81,6 +80,7 @@ if __name__ == "__main__":
     parser.add_argument("checkpoint", type=str, help="Path to the checkpoint file")
     parser.add_argument("input_image", type=str, help="Path to the input MRI image file (.nii.gz)")
     parser.add_argument("--target_shape", nargs=3, type=int, default=[128, 128, 128], help="Target shape for resampling")
+    parser.add_argument("--new_spacing", nargs=3, type=float, default=[1.0, 1.0, 1.0], help="New spacing for resampling")
     parser.add_argument("--patch_size", nargs=3, type=int, default=[64, 64, 64], help="Size of patches for prediction")
     parser.add_argument("--stride", nargs=3, type=int, default=[32, 32, 32], help="Stride for patch extraction")
     args = parser.parse_args()
