@@ -139,8 +139,8 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
     mri_images = []
     mask_labels = []
     # get all mri and maks files
-    mri_files = sorted(glob.glob(os.path.join(data_dir, '*_mri.nii*')))
-    mask_files = sorted(glob.glob(os.path.join(data_dir, '*_mask.nii*')))
+    mri_files = sorted(glob.glob(os.path.join(data_dir, '*mri.nii*')))
+    mask_files = sorted(glob.glob(os.path.join(data_dir, '*mask.nii*')))
     if len(mri_files) != len(mask_files):
         print(f"number of images {len(mri_files)}")
         print(f"number of masks {len(mask_files)}")
