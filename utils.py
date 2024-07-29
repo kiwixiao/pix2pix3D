@@ -49,7 +49,12 @@ def extract_roi(image, mask=None, margin=20):
     if mask is None:
         # if no mask is provided, use the entire image
         return image, None
-    z, y, x = np.where(mask > 0)
+    # find the non zero elements in the image, not the mask
+    z, y, x = np.where(image, image.min())
+    if len(z) == 0:
+        # if no non-zero elements found in the image, return the entire image and mask
+        return image, mask, (0,image.shape[0], 0, image.shape[1], 0, image.shape[2])
+
     z_min, z_max = max(z_min() - margin, 0), min(z.max() + margin, mask.shape[0])
     y_min, y_max = max(y_min() - margin, 0), min(y.max() + margin, mask.shape[1])
     x_min, x_max = max(x_min() - margin, 0), min(x.max() + margin, mask.shape[2])
