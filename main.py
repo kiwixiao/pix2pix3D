@@ -24,8 +24,8 @@ def main(args):
     test_size = len(dataset) - train_size
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-    generator = Generator(args.backbone, args.in_channels, args.out_channels, args.features).to(device)
-    discriminator = Discriminator(args.in_channels + args.out_channels, args.features).to(device)
+    generator = Generator(backbone=args.backbone, in_channels=args.in_channels, out_channels=args.out_channels, features=args.features).to(device)
+    discriminator = Discriminator(in_channels=args.in_channels + args.out_channels, features=args.features).to(device)
 
     train(generator, discriminator, train_dataset, test_dataset, args)
 
@@ -44,6 +44,11 @@ if __name__ == "__main__":
     parser.add_argument("--new_spacing", nargs=3, type=float, default=[1.0, 1.0, 1.0], help="New spacing for resampling")
     parser.add_argument("--patch_size", nargs=3, type=int, default=[64, 64, 64], help="Size of patches for training")
     parser.add_argument("--stride", nargs=3, type=int, default=[32, 32, 32], help="Stride for patch extraction")
+    parser.add_argument("--num_workers", type=int, default=4, help="Number of worker threads for data loading")
+    parser.add_argument("--save_interval", type=int, default=10, help="Epoch interval for saving checkpoints")
+    parser.add_argument("--plot_interval", type=int, default=5, help="Epoch interval for plotting sample predictions")
+    parser.add_argument("--lambda_seg", type=float, default=50, help="Weight for segmentation loss")
+    parser.add_argument("--lambda_focal", type=float, default=50, help="Weight for focal Tversky loss")
 
     args = parser.parse_args()
     args.output_dir = os.path.join(args.output_dir, datetime.now().strftime("%Y%m%d_%H%M%S"))
