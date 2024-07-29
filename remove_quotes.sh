@@ -15,11 +15,17 @@ if [ ! -d "$directory" ]; then
     exit 1
 fi
 
+echo "Changing to directory: $directory"
 # Change to the specified directory
 cd "$directory" || exit
 
+echo "Current directory: $(pwd)"
+echo "Files in directory:"
+ls -la
+
 # Loop through all files in the specified directory
 for file in *; do
+    echo "Processing file: $file"
     # Check if the filename starts and ends with a single quote
     if [[ $file == \'*\' ]]; then
         # Remove the single quotes
@@ -28,5 +34,9 @@ for file in *; do
         # Rename the file
         mv "$file" "$newname"
         echo "Renamed: $file -> $newname"
+    else
+        echo "File does not need renaming: $file"
     fi
 done
+
+echo "Script completed."
