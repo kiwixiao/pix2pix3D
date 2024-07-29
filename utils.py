@@ -142,6 +142,9 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
     mri_files = sorted(glob.glob(os.path.join(data_dir, '*_mri.nii*')))
     mask_files = sorted(glob.glob(os.path.join(data_dir, '*_mask.nii*')))
     if len(mri_files) != len(mask_files):
+        print(f"number of images {len(mri_files)}")
+        print(f"number of masks {len(mask_files)}")
+        
         raise ValueError("Number of MRI images and masks do not match.")
     # process each pair of MRI and mask
     for mri_file, mask_file in zip(mri_files,mask_files):
