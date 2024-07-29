@@ -137,7 +137,7 @@ class PatchDataset(Dataset):
             self.patches.extend(list(zip(mri_patches, mask_patches)))
 
     def __len__(self):
-        return len(self.mri_patches)
+        return len(self.patches)
 
     def __getitem__(self, idx):
         img_patch, mask_patch = self.patches[idx]
