@@ -86,15 +86,23 @@ def preprocess_data(image_path, mask_path, target_shape, new_spacing=[1.0, 1.0, 
     image_array = sitk.GetArrayFromImage(image_resampled)
     mask_array = sitk.GetArrayFromImage(mask_resampled) if mask else None
     # extract ROI
-    roi_image, roi_mask, roi_coords = extract_roi(image_array, mask_array)
-
+    #roi_image, roi_mask, roi_coords = extract_roi(image_array, mask_array)
     # normalized roi image to [-1, 1]
-    roi_image = 2 * (roi_image - roi_image.min()) / (roi_image.max() - roi_image.min()) - 1
-    # resize ROI to rarget shape
-    roi_image_resized = resize_volume(roi_image, target_shape)
-    roi_mask_resized = resize_volume(roi_mask, target_shape) if roi_mask is not None else None
+    #roi_image = 2 * (roi_image - roi_image.min()) / (roi_image.max() - roi_image.min()) - 1
+    
 
-    return roi_image_resized, roi_mask_resized, roi_coords
+    # resize ROI to rarget shape
+    #roi_image_resized = resize_volume(roi_image, target_shape)
+    #roi_mask_resized = resize_volume(roi_mask, target_shape) if roi_mask is not None else None
+# Normalize image to [-1, 1]
+    image_array = 2 * (image_array - image_array.min()) / (image_array.max() - image_array.min()) - 1
+    
+    # Resize to target shape
+    image_resized = resize_volume(image_array, target_shape)
+    mask_resized = resize_volume(mask_array, target_shape) if mask_array is not None else None
+    
+    return image_resized, mask_resized
+
 
 def extract_patches(image, mask, patch_size, stride):
     # extract patches from a 3D image
@@ -154,9 +162,9 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
     # process each pair of MRI and mask
     for mri_file, mask_file in zip(mri_files,mask_files):
         logger.info(f"Processing {mri_file}")
-        roi_image, roi_mask, _ = preprocess_data(mri_file, mask_file, target_shape, new_spacing)
-        mri_images.append(roi_image)
-        mask_labels.append(roi_mask)
+        mri_image, mask_label = preprocess_data(mri_file, mask_file, target_shape, new_spacing)
+        mri_images.append(mri_image)
+        mask_labels.append(mask_label)
     dataset = PatchDataset(mri_images, mask_labels, patch_size, stride)
 
     return dataset
