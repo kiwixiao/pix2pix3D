@@ -122,27 +122,47 @@ def extract_patches(image, mask, patch_size, stride):
     return patches, mask_patches
 
 class PatchDataset(Dataset):
-    def __init__(self, mri_images, mask_labels, patch_size=(64,64,64), stride=(32,32,32)):
-        self.mri_images=mri_images
-        self.mask_labels = mask_labels
+    def __init__(self, images, masks, patch_size, stride):
+        self.images = images
+        self.masks = masks
         self.patch_size = patch_size
         self.stride = stride
-
+        
         self.patches = []
-        self.extract_all_patches = []
-
+        self.extract_all_patches()
+        
+        if len(self.patches) == 0:
+            raise ValueError(f"No patches were extracted. Check patch_size {patch_size} and stride {stride}.")
+    
     def extract_all_patches(self):
-        for mri, mask in zip(self.mri_images, self.mask_labels):
-            mri_patches, mask_patches = extract_patches(mri, mask, self.patch_size, self.stride)
-            self.patches.extend(list(zip(mri_patches, mask_patches)))
+        for img, mask in zip(self.images, self.masks):
+            img_patches, mask_patches = self.extract_patches(img, mask)
+            self.patches.extend(list(zip(img_patches, mask_patches)))
+        print(f"Extracted {len(self.patches)} patches from {len(self.images)} images.")
+    
+    def extract_patches(self, image, mask):
+        img_patches = []
+        mask_patches = []
+        d, h, w = image.shape
+        pd, ph, pw = self.patch_size
+        sd, sh, sw = self.stride
+
+        for i in range(0, d - pd + 1, sd):
+            for j in range(0, h - ph + 1, sh):
+                for k in range(0, w - pw + 1, sw):
+                    img_patch = image[i:i+pd, j:j+ph, k:k+pw]
+                    mask_patch = mask[i:i+pd, j:j+ph, k:k+pw] if mask is not None else None
+                    img_patches.append(img_patch)
+                    mask_patches.append(mask_patch)
+
+        return img_patches, mask_patches
 
     def __len__(self):
         return len(self.patches)
-
+    
     def __getitem__(self, idx):
         img_patch, mask_patch = self.patches[idx]
-        
-        return torch.from_numpy(img_patch).float().unsqueeze(0), torch.from_numpy(mask_patch).float().unsqueeze(0)
+        return torch.from_numpy(img_patch).float().unsqueeze(0), torch.from_numpy(mask_patch).float().unsqueeze(0) if mask_patch is not None else None
 
 import os
 import glob
@@ -180,8 +200,13 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
     
     logger.info(f"Successfully processed {len(mri_images)} image-mask pairs.")
     
-    dataset = PatchDataset(mri_images, mask_labels, patch_size, stride)
-    return dataset
+    try:
+        dataset = PatchDataset(mri_images, mask_labels, patch_size, stride)
+        logger.info(f"Created dataset with {len(dataset)} patches.")
+        return dataset
+    except ValueError as e:
+        logger.error(f"Error creating dataset: {str(e)}")
+        raise
 
 def calculate_metrics(true_mask, pred_mask):
     """
