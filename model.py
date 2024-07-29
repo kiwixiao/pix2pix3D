@@ -49,7 +49,7 @@ class UpBlock(nn.Module):
         return self.conv(x)
 
 class UNet3D(nn.Module):
-    def __init__(self, in_channels, out_channels, features=64):
+    def __init__(self, in_channels, out_channels, features=32):
         super(UNet3D, self).__init__()
         self.encoder1 = ConvBlock(in_channels, features)
         self.encoder2 = ConvBlock(features, features * 2)
