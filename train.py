@@ -64,8 +64,8 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
             pred_real = discriminator(real_input)
             pred_fake = discriminator(fake_input)
             
-            loss_d_real = criterion_gan(pred_real, torch.ones(batch_size, 1, 1, 1, 1).to(device))
-            loss_d_fake = criterion_gan(pred_fake, torch.zeros(batch_size, 1, 1, 1, 1).to(device))
+            loss_d_real = criterion_gan(pred_real, torch.ones_like(pred_real))
+            loss_d_fake = criterion_gan(pred_fake, torch.zeros_like(pred_fake))
             loss_d = (loss_d_real + loss_d_fake) * 0.5
             
             loss_d.backward()
@@ -78,7 +78,7 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
             fake_input = torch.cat([mri_patch, fake_patch.detach()], dim=1)
             pred_fake = discriminator(fake_input)
             
-            loss_g_gan = criterion_gan(pred_fake, torch.ones(batch_size, 1, 1, 1, 1).to(device))
+            loss_g_gan = criterion_gan(pred_fake, torch.ones_like(pred_fake))
             loss_g_seg = criterion_seg(fake_patch, mask_patch)
             loss_g_focal = criterion_focal_tversky(fake_patch, mask_patch)
             
