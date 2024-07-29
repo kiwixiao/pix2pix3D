@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--in_channels", type=int, default=1, help="Number of input channels")
     parser.add_argument("--out_channels", type=int, default=1, help="Number of output channels")
     parser.add_argument("--features", type=int, default=64, help="Number of features in the first layer")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training")
     parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=0.0002, help="Learning rate")
     parser.add_argument("--target_shape", nargs=3, type=int, default=[128, 128, 128], help="Target shape for resampling")
