@@ -60,6 +60,7 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
             real_input = torch.cat([mri_patch, mask_patch], dim=1)
             fake_input = torch.cat([mri_patch, fake_patch.detach()], dim=1)
             
+            real_input = torch.cat([mri_patch, mask_patch], dim=1)
             pred_real = discriminator(real_input)
             pred_fake = discriminator(fake_input)
             
@@ -74,7 +75,7 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
             optimizer_g.zero_grad()
             
             fake_patch = generator(mri_patch)
-            fake_input = torch.cat([mri_patch, fake_patch], dim=1)
+            fake_input = torch.cat([mri_patch, fake_patch.detach()], dim=1)
             pred_fake = discriminator(fake_input)
             
             loss_g_gan = criterion_gan(pred_fake, torch.ones(batch_size, 1, 1, 1, 1).to(device))
