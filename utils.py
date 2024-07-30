@@ -89,7 +89,6 @@ def preprocess_data(image_path, mask_path, target_shape, new_spacing=[1.0, 1.0, 
     #roi_image, roi_mask, roi_coords = extract_roi(image_array, mask_array)
     # normalized roi image to [-1, 1]
     #roi_image = 2 * (roi_image - roi_image.min()) / (roi_image.max() - roi_image.min()) - 1
-    
 
     # resize ROI to rarget shape
     #roi_image_resized = resize_volume(roi_image, target_shape)
