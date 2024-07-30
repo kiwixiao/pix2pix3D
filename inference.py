@@ -3,7 +3,8 @@ import torch
 import SimpleITK as sitk
 import numpy as np
 from model import Generator
-from utils import preprocess_data, resize_volume, extract_patches
+from utils import preprocess_data, resize_volume
+from tqdm import tqdm
 import os
 
 def load_checkpoint(checkpoint_path, device):
@@ -19,31 +20,44 @@ def predict_patch(generator, patch, device):
         output = generator(input_tensor)
     return output.squeeze().cpu().numpy()
 
-def reconstruct_from_patches(patches, original_shape, patch_size, stride):
-    output = np.zeros(original_shape)
-    count = np.zeros(original_shape)
-    
-    i = 0
-    for z in range(0, original_shape[0] - patch_size[0] + 1, stride[0]):
-        for y in range(0, original_shape[1] - patch_size[1] + 1, stride[1]):
-            for x in range(0, original_shape[2] - patch_size[2] + 1, stride[2]):
-                output[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += patches[i]
-                count[z:z+patch_size[0], y:y+patch_size[1], x:x+patch_size[2]] += 1
-                i += 1
-    
-    output = np.divide(output, count, where=count!=0)
-    return output
+def create_linear_ramp(size):
+    return np.linspace(0, 1, size)
 
 def predict(generator, input_image, device, patch_size, stride):
-    patches, _ = extract_patches(input_image, None, patch_size, stride)
-    predicted_patches = []
+    d, h, w = input_image.shape
+    pd, ph, pw = patch_size
+    sd, sh, sw = stride
+
+    # Initialize the output and weight arrays
+    output = np.zeros_like(input_image, dtype=float)
+    weight = np.zeros_like(input_image, dtype=float)
+
+    # Create linear ramps for blending
+    ramp_d = create_linear_ramp(pd)
+    ramp_h = create_linear_ramp(ph)
+    ramp_w = create_linear_ramp(pw)
+
+    # Create the 3D linear blend kernel
+    kernel = np.ones(patch_size, dtype=float)
+    kernel = np.minimum(kernel, ramp_d[:, np.newaxis, np.newaxis])
+    kernel = np.minimum(kernel, ramp_h[np.newaxis, :, np.newaxis])
+    kernel = np.minimum(kernel, ramp_w[np.newaxis, np.newaxis, :])
+    kernel = np.minimum(kernel, np.flip(kernel, axis=(0,1,2)))
+
+    # Sliding window prediction
+    for z in tqdm(range(0, d - pd + 1, sd), desc="Predicting"):
+        for y in range(0, h - ph + 1, sh):
+            for x in range(0, w - pw + 1, sw):
+                patch = input_image[z:z+pd, y:y+ph, x:x+pw]
+                pred_patch = predict_patch(generator, patch, device)
+                
+                output[z:z+pd, y:y+ph, x:x+pw] += pred_patch * kernel
+                weight[z:z+pd, y:y+ph, x:x+pw] += kernel
+
+    # Normalize the output by the accumulated weights
+    output = np.divide(output, weight, where=weight!=0)
     
-    for patch in patches:
-        pred_patch = predict_patch(generator, patch, device)
-        predicted_patches.append(pred_patch)
-    
-    predicted_mask = reconstruct_from_patches(predicted_patches, input_image.shape, patch_size, stride)
-    return predicted_mask
+    return output
 
 def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -57,9 +71,6 @@ def main(args):
 
     # Predict on preprocessed image
     predicted_mask = predict(generator, preprocessed_image, device, args.patch_size, args.stride)
-
-    # Transform prediction from [-1, 1] to [0, 1]
-    predicted_mask = (predicted_mask + 1) / 2
 
     # Threshold the prediction
     predicted_mask = (predicted_mask > 0.5).astype(np.float32)
@@ -79,10 +90,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference script for 3D pix2pixGAN MRI segmentation")
     parser.add_argument("checkpoint", type=str, help="Path to the checkpoint file")
     parser.add_argument("input_image", type=str, help="Path to the input MRI image file (.nii.gz)")
-    parser.add_argument("--target_shape", nargs=3, type=int, default=[128, 128, 128], help="Target shape for resampling")
+    parser.add_argument("--target_shape", nargs=3, type=int, default=[256, 256, 256], help="Target shape for resampling")
     parser.add_argument("--new_spacing", nargs=3, type=float, default=[1.0, 1.0, 1.0], help="New spacing for resampling")
-    parser.add_argument("--patch_size", nargs=3, type=int, default=[64, 64, 64], help="Size of patches for prediction")
-    parser.add_argument("--stride", nargs=3, type=int, default=[32, 32, 32], help="Stride for patch extraction")
+    parser.add_argument("--patch_size", nargs=3, type=int, default=[32, 32, 32], help="Size of patches for prediction")
+    parser.add_argument("--stride", nargs=3, type=int, default=[16, 16, 16], help="Stride for patch extraction")
     args = parser.parse_args()
 
     main(args)
