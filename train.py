@@ -21,6 +21,9 @@ def calculate_metrics(true_mask, pred_mask, threshold=0.5):
     pred_mask = pred_mask.cpu().numpy()
     pred_mask_binary = (pred_mask > threshold).astype(np.float32)
     
+    print(f"Pred mask shape: {pred_mask.shape}, range: [{pred_mask.min()}, {pred_mask.max()}]")
+    print(f"True mask shape: {true_mask.shape}, unique values: {np.unique(true_mask)}")
+    print(f"Pred mask binary shape: {pred_mask_binary.shape}, unique values: {np.unique(pred_mask_binary)}")
     
     dice = calculate_dice(true_mask, pred_mask_binary)
     true_flat = true_mask.flatten()
@@ -64,7 +67,7 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
 
     # Loss functions
     criterion_gan = nn.BCEWithLogitsLoss()
-    criterion_seg = nn.L1Loss()  # You might want to use a different segmentation loss
+    criterion_seg = nn.BCELoss()  # You might want to use a different segmentation loss
 
     # Optimizers
     optimizer_g = optim.Adam(generator.parameters(), lr=args.lr, betas=(0.5, 0.999))
@@ -198,9 +201,9 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
                                 epoch, args.output_dir)
                 
                 # Log images to TensorBoard
-                writer.add_image('Sample/MRI', sample_mri.squeeze(), epoch, dataformats='CHW')
-                writer.add_image('Sample/True_Mask', sample_mask.squeeze(), epoch, dataformats='CHW')
-                writer.add_image('Sample/Predicted_Mask', sample_pred.squeeze(), epoch, dataformats='CHW')
+                writer.add_image('Sample/MRI', sample_mri.squeeze().cpu().numpy(), epoch, dataformats='CHW')
+                writer.add_image('Sample/True_Mask', sample_mask.squeeze().cpu().numpy(), epoch, dataformats='CHW')
+                writer.add_image('Sample/Predicted_Mask', sample_pred.squeeze().cpu().numpy(), epoch, dataformats='CHW')
             
             generator.train()
 
