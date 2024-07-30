@@ -208,18 +208,6 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
         logger.error(f"Error creating dataset: {str(e)}")
         raise
 
-def calculate_metrics(true_mask, pred_mask):
-    """
-    calculate F1 score and IoU (Jaccard index) for the prediction
-    These metrics help evaluate the performance of the segmentation model.
-    """
-    true_mask = true_mask.flatten()
-    pred_mask = pred_mask.flatten()
-    f1 = f1_score(true_mask, pred_mask > 0.5)
-    iou = jaccard_score(true_mask, pred_mask > 0.5)
-    return {'F1': f1, 'IoU': iou}
-
-
 
 def plot_prediction(test_mri, test_mask, pred_mask, epoch, output_dir):
     """Plot and save the prediction results"""

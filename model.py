@@ -102,14 +102,19 @@ class Discriminator(nn.Module):
         return self.model(x)
 
 class Generator(nn.Module):
-    def __init__(self, backbone, in_channels, out_channels, features=64):
+    def __init__(self, backbone, in_channels, out_channels, features=64, final_activation='sigmodi'):
         super(Generator, self).__init__()
         self.backbone = backbone
         if backbone == 'unet':
             self.model = UNet3D(in_channels, out_channels, features)
         else:
             raise ValueError(f"Unsupported backbone: {backbone}")
-        self.final_activation = nn.Tanh()
+        if final_activation=='tanh':
+            self.final_activation = nn.Tanh()
+        elif final_activation == 'sigmoid':
+            self.final_activation = nn.Sigmoid()
+        else:
+            raise ValueError(f"Generator Final Layer Unsupported final activation: {final_activation}") 
 
     def forward(self, x):
         x = self.model(x)
