@@ -152,8 +152,15 @@ class PatchDataset(Dataset):
                 for k in range(0, w - pw + 1, sw):
                     img_patch = image[i:i+pd, j:j+ph, k:k+pw]
                     mask_patch = mask[i:i+pd, j:j+ph, k:k+pw] if mask is not None else None
-                    img_patches.append(img_patch)
-                    mask_patches.append(mask_patch)
+                    # check if the mask patch contains enough foreground pixels
+                    if mask_patch is not None:
+                        foreground_ratio = np.sum(mask_patch) / mask_patch.size
+                        if foreground_ratio > 0.05: # 5% threshold
+                            img_patches.append(img_patch)
+                            mask_patches.append(mask_patch)
+                    else:
+                        img_patches.append(img_patch)
+                        mask_patches.append(mask_patch)
 
         return img_patches, mask_patches
 
