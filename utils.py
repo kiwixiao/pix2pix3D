@@ -134,12 +134,6 @@ class PatchDataset(Dataset):
         if len(self.patches) == 0:
             raise ValueError(f"No patches were extracted. Check patch_size {patch_size} and stride {stride}.")
     
-    def extract_all_patches(self):
-        for img, mask in zip(self.images, self.masks):
-            img_patches, mask_patches = self.extract_patches(img, mask)
-            self.patches.extend(list(zip(img_patches, mask_patches)))
-        print(f"Extracted {len(self.patches)} patches from {len(self.images)} images.")
-    
     def extract_patches(self, image, mask):
         img_patches = []
         mask_patches = []
@@ -163,17 +157,19 @@ class PatchDataset(Dataset):
                         mask_patches.append(mask_patch)
 
         return img_patches, mask_patches
-
+    
+    def extract_all_patches(self):
+        for img, mask in zip(self.images, self.masks):
+            img_patches, mask_patches = self.extract_patches(img, mask)
+            self.patches.extend(list(zip(img_patches, mask_patches)))
+        print(f"Extracted {len(self.patches)} patches from {len(self.images)} images.")
+    
     def __len__(self):
         return len(self.patches)
     
     def __getitem__(self, idx):
         img_patch, mask_patch = self.patches[idx]
         return torch.from_numpy(img_patch).float().unsqueeze(0), torch.from_numpy(mask_patch).float().unsqueeze(0) if mask_patch is not None else None
-
-import os
-import glob
-import logging
 
 def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1.0, 1.0]):
     logger = logging.getLogger(__name__)
@@ -201,6 +197,12 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
         logger.info(f"Corresponding mask: {mask_file}")
         
         mri_image, mask_label = preprocess_data(mri_file, mask_file, target_shape, new_spacing)
+        
+        # Check if mask is binary
+        unique_values = np.unique(mask_label)
+        if not set(unique_values).issubset({0, 1}):
+            print(f"loaddataset method in untils.py: Warning: Non-binary mask detected in {mask_file}. Unique values: {unique_values}")
+            mask_label = (mask_label > 0).astype(np.float32)
         
         mri_images.append(mri_image)
         mask_labels.append(mask_label)

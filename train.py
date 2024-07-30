@@ -99,6 +99,7 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
             optimizer_d.zero_grad()
             
             fake_patch = generator(mri_patch)
+            print(f"Generator output shape: {fake_patch.shape}, range: [{fake_patch.min().item()}, {fake_patch.max().item()}]")
             real_input = torch.cat([mri_patch, mask_patch], dim=1)
             fake_input = torch.cat([mri_patch, fake_patch.detach()], dim=1)
             
