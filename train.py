@@ -21,11 +21,16 @@ def calculate_metrics(true_mask, pred_mask, threshold=0.5):
     pred_mask = pred_mask.cpu().numpy()
     pred_mask_binary = (pred_mask > threshold).astype(np.float32)
     
+    
     dice = calculate_dice(true_mask, pred_mask_binary)
     true_flat = true_mask.flatten()
     pred_flat = pred_mask_binary.flatten()
-    f1 = f1_score(true_flat, pred_flat, zero_division=1)
-    iou = jaccard_score(true_flat, pred_flat, zero_division=1)
+    
+    print(f"True mask shape: {true_mask.shape}, unique values: {np.unique(true_mask)}")
+    print(f"Pred mask shape: {pred_mask_binary.shape}, unique values: {np.unique(pred_mask_binary)}")
+    
+    f1 = f1_score(true_flat, pred_flat, average='binary',zero_division=1)
+    iou = jaccard_score(true_flat, pred_flat, average='binary', zero_division=1)
     
     return {'dice': dice, 'f1': f1, 'iou': iou}
 
