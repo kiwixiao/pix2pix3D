@@ -49,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--plot_interval", type=int, default=5, help="Epoch interval for plotting sample predictions")
     parser.add_argument("--lambda_seg", type=float, default=50, help="Weight for segmentation loss")
     parser.add_argument("--lambda_focal", type=float, default=50, help="Weight for focal Tversky loss")
+    parser.add_argument("--log_interval", type=int, default=100, help="Step interval for logging to TensorBoard")
 
     args = parser.parse_args()
     args.output_dir = os.path.join(args.output_dir, datetime.now().strftime("%Y%m%d_%H%M%S"))
