@@ -102,7 +102,7 @@ class Discriminator(nn.Module):
         return self.model(x)
 
 class Generator(nn.Module):
-    def __init__(self, backbone, in_channels, out_channels, features=64, final_activation='sigmodi'):
+    def __init__(self, backbone, in_channels, out_channels, features=64, final_activation='sigmoid'):
         super(Generator, self).__init__()
         self.backbone = backbone
         if backbone == 'unet':
