@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.0002, help="Learning rate")
     parser.add_argument("--target_shape", nargs=3, type=int, default=[128, 128, 128], help="Target shape for resampling")
     parser.add_argument("--new_spacing", nargs=3, type=float, default=[1.0, 1.0, 1.0], help="New spacing for resampling")
-    parser.add_argument("--patch_size", nargs=3, type=int, default=[32, 32, 32], help="Size of patches for training")
+    parser.add_argument("--patch_size", nargs=3, type=int, default=[64, 64, 64], help="Size of patches for training")
     parser.add_argument("--stride", nargs=3, type=int, default=[32, 32, 32], help="Stride for patch extraction")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of worker threads for data loading")
     parser.add_argument("--save_interval", type=int, default=10, help="Epoch interval for saving checkpoints")
