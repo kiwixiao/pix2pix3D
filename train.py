@@ -201,9 +201,9 @@ def train(generator, discriminator, train_dataset, test_dataset, args):
                                 epoch, args.output_dir)
                 
                 # Log images to TensorBoard
-                writer.add_image('Sample/MRI', sample_mri.squeeze().cpu().numpy(), epoch, dataformats='CHW')
-                writer.add_image('Sample/True_Mask', sample_mask.squeeze().cpu().numpy(), epoch, dataformats='CHW')
-                writer.add_image('Sample/Predicted_Mask', sample_pred.squeeze().cpu().numpy(), epoch, dataformats='CHW')
+                #writer.add_image('Sample/MRI', sample_mri.squeeze().cpu().numpy(), epoch, dataformats='CHW')
+                #writer.add_image('Sample/True_Mask', sample_mask.squeeze().cpu().numpy(), epoch, dataformats='CHW')
+                #writer.add_image('Sample/Predicted_Mask', sample_pred.squeeze().cpu().numpy(), epoch, dataformats='CHW')
             
             generator.train()
 
