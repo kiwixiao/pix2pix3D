@@ -72,7 +72,7 @@ def resize_volume(img, target_shape):
     factors = [float(t) / float(s) for t, s in zip(target_shape, current_shape)]
     return zoom(img, factors, order=1, mode='constant')
 
-def preprocess_data(image_path, mask_path, target_shape, new_spacing=[1.0, 1.0, 1.0]):
+def preprocess_data(image_path, mask_path, target_shape, new_spacing=[1.0, 1.0, 1.0], normalization='zero_one'):
     """
     prepricess the image and mask data.
     """
@@ -95,7 +95,12 @@ def preprocess_data(image_path, mask_path, target_shape, new_spacing=[1.0, 1.0, 
     #roi_image_resized = resize_volume(roi_image, target_shape)
     #roi_mask_resized = resize_volume(roi_mask, target_shape) if roi_mask is not None else None
 # Normalize image to [-1, 1]
-    image_array = 2 * (image_array - image_array.min()) / (image_array.max() - image_array.min()) - 1
+    if normalization == 'zero_one':
+        image_array = (image_array - image_array.min()) / (image_array.max() - image_array.min())
+    elif normalization == 'symmetric':
+        image_array = 2 * (image_array - image_array.min()) / (image_array.max() - image_array.min()) - 1 # [-1,1]
+    else:
+        raise ValueError(f'Image normalization method is not supported')
     
     # Resize to target shape
     image_resized = resize_volume(image_array, target_shape)
@@ -201,7 +206,7 @@ def load_dataset(data_dir, target_shape, patch_size, stride, new_spacing=[1.0, 1
         # Check if mask is binary
         unique_values = np.unique(mask_label)
         if not set(unique_values).issubset({0, 1}):
-            print(f"loaddataset method in untils.py: Warning: Non-binary mask detected in {mask_file}. Unique values: {unique_values}")
+            print(f"load_dataset method in untils.py: Warning: Non-binary mask detected in {mask_file}. Unique values: {unique_values}")
             mask_label = (mask_label > 0).astype(np.float32)
         
         mri_images.append(mri_image)
